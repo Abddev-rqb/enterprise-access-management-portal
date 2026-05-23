@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: accessportal-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: accessportal_db
+      POSTGRES_USER: accessportal_user
+      POSTGRES_PASSWORD: accessportal_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - accessportal_postgres_data:/var/lib/postgresql/data
+    networks:
+      - accessportal-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: accessportal-backend
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/accessportal_db
+      SPRING_DATASOURCE_USERNAME: accessportal_user
+      SPRING_DATASOURCE_PASSWORD: accessportal_pass
+    ports:
+      - "8080:8080"
+    networks:
+      - accessportal-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: accessportal-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    networks:
+      - accessportal-network
+
+volumes:
+  accessportal_postgres_data:
+
+networks:
+  accessportal-network:
+    driver: bridge

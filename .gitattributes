@@ -1,0 +1,19 @@
+# Normalize text files
+* text=auto
+
+# Shell scripts must use LF
+*.sh text eol=lf
+mvnw text eol=lf
+
+# Windows command files should use CRLF
+*.cmd text eol=crlf
+
+# Source files
+*.java text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.tf text eol=lf
+*.md text eol=lf
