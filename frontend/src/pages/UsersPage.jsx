@@ -6,6 +6,9 @@ import apiClient from '../api/apiClient'
 import ErrorState from '../components/ErrorState'
 import LoadingState from '../components/LoadingState'
 import PageHeader from '../components/PageHeader'
+import PaginationControls from '../components/PaginationControls'
+
+const PAGE_SIZE = 10
 
 const userSchema = z.object({
   fullName: z.string().min(2, 'Full name must have at least 2 characters'),
@@ -14,10 +17,6 @@ const userSchema = z.object({
   roleId: z.string().min(1, 'Role is required'),
   enabled: z.boolean(),
 }).superRefine((data, context) => {
-  if (!data.password && !data.enabled && data.password !== '') {
-    return
-  }
-
   if (data.password !== undefined && data.password !== '' && data.password.length < 6) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
@@ -35,16 +34,29 @@ const initialForm = {
   enabled: true,
 }
 
+const initialPageData = {
+  content: [],
+  page: 0,
+  size: PAGE_SIZE,
+  totalElements: 0,
+  totalPages: 0,
+  first: true,
+  last: true,
+}
+
 function UsersPage() {
-  const [users, setUsers] = useState([])
+  const [pageData, setPageData] = useState(initialPageData)
   const [roles, setRoles] = useState([])
   const [editingUserId, setEditingUserId] = useState(null)
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
   const [serverError, setServerError] = useState('')
   const [success, setSuccess] = useState('')
+
+  const users = pageData.content
 
   const {
     register,
@@ -66,11 +78,11 @@ function UsersPage() {
 
     try {
       const [usersResponse, rolesResponse] = await Promise.all([
-        apiClient.get('/users'),
+        apiClient.get(`/users/page?page=${page}&size=${PAGE_SIZE}`),
         apiClient.get('/roles'),
       ])
 
-      setUsers(usersResponse.data)
+      setPageData(usersResponse.data)
       setRoles(rolesResponse.data)
     } catch (err) {
       setServerError(err.response?.data?.message || 'Unable to load users.')
@@ -81,7 +93,7 @@ function UsersPage() {
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [page])
 
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
@@ -153,6 +165,7 @@ function UsersPage() {
         })
 
         setSuccess('User created successfully.')
+        setPage(0)
       }
 
       resetForm()
@@ -185,7 +198,7 @@ function UsersPage() {
     <div>
       <PageHeader
         title="Users"
-        subtitle="Create, update, disable, search, and filter enterprise user accounts."
+        subtitle="Create, update, disable, search, filter, and paginate enterprise user accounts."
       />
 
       {serverError && <ErrorState message={serverError} />}
@@ -305,7 +318,7 @@ function UsersPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             className="rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
-            placeholder="Search by name, email, or role..."
+            placeholder="Search current page by name, email, or role..."
           />
 
           <select
@@ -313,7 +326,7 @@ function UsersPage() {
             onChange={(event) => setRoleFilter(event.target.value)}
             className="rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
           >
-            <option value="ALL">All Roles</option>
+            <option value="ALL">All Roles on Current Page</option>
             {roles.map((role) => (
               <option key={role.id} value={role.name}>
                 {role.name}
@@ -326,14 +339,14 @@ function UsersPage() {
             onChange={(event) => setStatusFilter(event.target.value)}
             className="rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
           >
-            <option value="ALL">All Status</option>
+            <option value="ALL">All Status on Current Page</option>
             <option value="ACTIVE">Active</option>
             <option value="DISABLED">Disabled</option>
           </select>
         </div>
 
         <div className="mb-4 text-sm font-medium text-slate-500">
-          Showing {filteredUsers.length} of {users.length} users
+          Showing {filteredUsers.length} users on this page from {pageData.totalElements} total users
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-slate-200">
@@ -402,6 +415,15 @@ function UsersPage() {
             </tbody>
           </table>
         </div>
+
+        <PaginationControls
+          page={pageData.page}
+          size={pageData.size}
+          totalPages={pageData.totalPages}
+          totalElements={pageData.totalElements}
+          onPrevious={() => setPage((current) => Math.max(current - 1, 0))}
+          onNext={() => setPage((current) => current + 1)}
+        />
       </section>
     </div>
   )

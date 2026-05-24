@@ -3,19 +3,36 @@ import apiClient from '../api/apiClient'
 import ErrorState from '../components/ErrorState'
 import LoadingState from '../components/LoadingState'
 import PageHeader from '../components/PageHeader'
+import PaginationControls from '../components/PaginationControls'
+
+const PAGE_SIZE = 10
 
 function SessionsPage() {
-  const [sessions, setSessions] = useState([])
+  const [pageData, setPageData] = useState({
+    content: [],
+    page: 0,
+    size: PAGE_SIZE,
+    totalElements: 0,
+    totalPages: 0,
+    first: true,
+    last: true,
+  })
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const sessions = pageData.content
+
   useEffect(() => {
     const loadSessions = async () => {
+      setLoading(true)
+      setError('')
+
       try {
-        const response = await apiClient.get('/sessions')
-        setSessions(response.data)
+        const response = await apiClient.get(`/sessions/page?page=${page}&size=${PAGE_SIZE}`)
+        setPageData(response.data)
       } catch (err) {
         setError(err.response?.data?.message || 'Unable to load sessions.')
       } finally {
@@ -24,7 +41,7 @@ function SessionsPage() {
     }
 
     loadSessions()
-  }, [])
+  }, [page])
 
   const filteredSessions = useMemo(() => {
     return sessions.filter((session) => {
@@ -51,7 +68,7 @@ function SessionsPage() {
     <div>
       <PageHeader
         title="Sessions"
-        subtitle="Monitor login sessions, active tokens, logout time, and user access history."
+        subtitle="Monitor and paginate login sessions, active tokens, logout time, and user access history."
       />
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -60,7 +77,7 @@ function SessionsPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             className="rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
-            placeholder="Search by name, email, or role..."
+            placeholder="Search current page by name, email, or role..."
           />
 
           <select
@@ -68,14 +85,14 @@ function SessionsPage() {
             onChange={(event) => setStatusFilter(event.target.value)}
             className="rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
           >
-            <option value="ALL">All Sessions</option>
+            <option value="ALL">All Sessions on Current Page</option>
             <option value="ACTIVE">Active Sessions</option>
             <option value="INACTIVE">Inactive Sessions</option>
           </select>
         </div>
 
         <div className="mb-4 text-sm font-medium text-slate-500">
-          Showing {filteredSessions.length} of {sessions.length} sessions
+          Showing {filteredSessions.length} sessions on this page from {pageData.totalElements} total sessions
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-slate-200">
@@ -128,6 +145,15 @@ function SessionsPage() {
             </tbody>
           </table>
         </div>
+
+        <PaginationControls
+          page={pageData.page}
+          size={pageData.size}
+          totalPages={pageData.totalPages}
+          totalElements={pageData.totalElements}
+          onPrevious={() => setPage((current) => Math.max(current - 1, 0))}
+          onNext={() => setPage((current) => current + 1)}
+        />
       </section>
     </div>
   )

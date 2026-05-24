@@ -2,6 +2,7 @@ package com.abdul.accessportal.controller;
 
 import com.abdul.accessportal.dto.ApiResponse;
 import com.abdul.accessportal.dto.CreateUserRequest;
+import com.abdul.accessportal.dto.PageResponse;
 import com.abdul.accessportal.dto.UpdateUserRequest;
 import com.abdul.accessportal.dto.UserResponse;
 import com.abdul.accessportal.security.CustomUserPrincipal;
@@ -25,6 +26,15 @@ public class UserController {
     @PreAuthorize("hasAuthority('USER_READ')")
     public List<UserResponse> getAllUsers() {
         return userService.getAllUsers();
+    }
+
+    @GetMapping("/page")
+    @PreAuthorize("hasAuthority('USER_READ')")
+    public PageResponse<UserResponse> getUsersPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return userService.getUsersPage(page, size);
     }
 
     @GetMapping("/{id}")

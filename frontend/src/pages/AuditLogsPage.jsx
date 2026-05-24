@@ -3,19 +3,36 @@ import apiClient from '../api/apiClient'
 import ErrorState from '../components/ErrorState'
 import LoadingState from '../components/LoadingState'
 import PageHeader from '../components/PageHeader'
+import PaginationControls from '../components/PaginationControls'
+
+const PAGE_SIZE = 10
 
 function AuditLogsPage() {
-  const [logs, setLogs] = useState([])
+  const [pageData, setPageData] = useState({
+    content: [],
+    page: 0,
+    size: PAGE_SIZE,
+    totalElements: 0,
+    totalPages: 0,
+    first: true,
+    last: true,
+  })
   const [search, setSearch] = useState('')
   const [actionFilter, setActionFilter] = useState('ALL')
+  const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const logs = pageData.content
+
   useEffect(() => {
     const loadLogs = async () => {
+      setLoading(true)
+      setError('')
+
       try {
-        const response = await apiClient.get('/audit-logs')
-        setLogs(response.data)
+        const response = await apiClient.get(`/audit-logs/page?page=${page}&size=${PAGE_SIZE}`)
+        setPageData(response.data)
       } catch (err) {
         setError(err.response?.data?.message || 'Unable to load audit logs.')
       } finally {
@@ -24,7 +41,7 @@ function AuditLogsPage() {
     }
 
     loadLogs()
-  }, [])
+  }, [page])
 
   const actionOptions = useMemo(() => {
     return Array.from(new Set(logs.map((log) => log.action))).sort()
@@ -53,7 +70,7 @@ function AuditLogsPage() {
     <div>
       <PageHeader
         title="Audit Logs"
-        subtitle="Search and filter login attempts, user actions, role updates, and security events."
+        subtitle="Search, filter, and paginate login attempts, user actions, role updates, and security events."
       />
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -62,7 +79,7 @@ function AuditLogsPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             className="rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
-            placeholder="Search actor, action, details, or IP..."
+            placeholder="Search current page by actor, action, details, or IP..."
           />
 
           <select
@@ -70,7 +87,7 @@ function AuditLogsPage() {
             onChange={(event) => setActionFilter(event.target.value)}
             className="rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-900"
           >
-            <option value="ALL">All Actions</option>
+            <option value="ALL">All Actions on Current Page</option>
             {actionOptions.map((action) => (
               <option key={action} value={action}>
                 {action}
@@ -80,7 +97,7 @@ function AuditLogsPage() {
         </div>
 
         <div className="mb-4 text-sm font-medium text-slate-500">
-          Showing {filteredLogs.length} of {logs.length} audit records
+          Showing {filteredLogs.length} records on this page from {pageData.totalElements} total audit records
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-slate-200">
@@ -121,6 +138,15 @@ function AuditLogsPage() {
             </tbody>
           </table>
         </div>
+
+        <PaginationControls
+          page={pageData.page}
+          size={pageData.size}
+          totalPages={pageData.totalPages}
+          totalElements={pageData.totalElements}
+          onPrevious={() => setPage((current) => Math.max(current - 1, 0))}
+          onNext={() => setPage((current) => current + 1)}
+        />
       </section>
     </div>
   )

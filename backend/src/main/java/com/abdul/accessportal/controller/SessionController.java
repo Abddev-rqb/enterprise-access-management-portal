@@ -1,5 +1,6 @@
 package com.abdul.accessportal.controller;
 
+import com.abdul.accessportal.dto.PageResponse;
 import com.abdul.accessportal.dto.SessionResponse;
 import com.abdul.accessportal.service.SessionService;
 import lombok.RequiredArgsConstructor;
@@ -25,5 +26,14 @@ public class SessionController {
     @PreAuthorize("hasAuthority('AUDIT_VIEW')")
     public List<SessionResponse> getActiveSessions() {
         return sessionService.getActiveSessions();
+    }
+
+    @GetMapping("/page")
+    @PreAuthorize("hasAuthority('AUDIT_VIEW')")
+    public PageResponse<SessionResponse> getSessionsPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return sessionService.getSessionsPage(page, size);
     }
 }

@@ -1,6 +1,7 @@
 package com.abdul.accessportal.service;
 
 import com.abdul.accessportal.dto.CreateUserRequest;
+import com.abdul.accessportal.dto.PageResponse;
 import com.abdul.accessportal.dto.UpdateUserRequest;
 import com.abdul.accessportal.dto.UserResponse;
 import com.abdul.accessportal.entity.Role;
@@ -8,6 +9,8 @@ import com.abdul.accessportal.entity.User;
 import com.abdul.accessportal.repository.RoleRepository;
 import com.abdul.accessportal.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,11 +26,31 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
 
+    @Transactional(readOnly = true)
     public List<UserResponse> getAllUsers() {
         return userRepository.findAll()
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<UserResponse> getUsersPage(int page, int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 50);
+
+        var pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        var usersPage = userRepository.findAll(pageable);
+
+        return new PageResponse<>(
+                usersPage.getContent().stream().map(this::toResponse).toList(),
+                usersPage.getNumber(),
+                usersPage.getSize(),
+                usersPage.getTotalElements(),
+                usersPage.getTotalPages(),
+                usersPage.isFirst(),
+                usersPage.isLast()
+        );
     }
 
     public UserResponse getUserById(Long id) {
@@ -52,19 +75,8 @@ public class UserService {
 
         User savedUser = userRepository.save(user);
 
-        auditService.log(
-                actorEmail,
-                "USER_CREATED",
-                "Created user: " + savedUser.getEmail(),
-                null
-        );
-
-        auditService.log(
-                actorEmail,
-                "USER_ROLE_ASSIGNED",
-                "Assigned role " + role.getName() + " to user: " + savedUser.getEmail(),
-                null
-        );
+        auditService.log(actorEmail, "USER_CREATED", "Created user: " + savedUser.getEmail(), null);
+        auditService.log(actorEmail, "USER_ROLE_ASSIGNED", "Assigned role " + role.getName() + " to user: " + savedUser.getEmail(), null);
 
         return toResponse(savedUser);
     }
@@ -89,20 +101,10 @@ public class UserService {
 
         User savedUser = userRepository.save(user);
 
-        auditService.log(
-                actorEmail,
-                "USER_UPDATED",
-                "Updated user: " + savedUser.getEmail(),
-                null
-        );
+        auditService.log(actorEmail, "USER_UPDATED", "Updated user: " + savedUser.getEmail(), null);
 
         if (previousRole == null || !previousRole.equals(role.getName())) {
-            auditService.log(
-                    actorEmail,
-                    "USER_ROLE_ASSIGNED",
-                    "Changed role from " + previousRole + " to " + role.getName() + " for user: " + savedUser.getEmail(),
-                    null
-            );
+            auditService.log(actorEmail, "USER_ROLE_ASSIGNED", "Changed role from " + previousRole + " to " + role.getName() + " for user: " + savedUser.getEmail(), null);
         }
 
         return toResponse(savedUser);
@@ -114,12 +116,7 @@ public class UserService {
         user.setEnabled(false);
         userRepository.save(user);
 
-        auditService.log(
-                actorEmail,
-                "USER_DISABLED",
-                "Disabled user: " + user.getEmail(),
-                null
-        );
+        auditService.log(actorEmail, "USER_DISABLED", "Disabled user: " + user.getEmail(), null);
     }
 
     private User findUser(Long id) {
